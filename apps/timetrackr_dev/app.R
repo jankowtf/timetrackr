@@ -1,10 +1,9 @@
 ##------------------------------------------------------------------------------
 ## Meta //
 ##------------------------------------------------------------------------------
-# library(shiny)
-# library(DT)
-# install.packages("DT")
-# devtools::install_github('rstudio/DT')
+
+library(shiny)
+library(shinydashboard)
 
 debug_mode <- FALSE
 
@@ -73,6 +72,7 @@ if (app_stage == "v1.0") {
 
 if (app_stage == "v1.1") {
   source("global.R")
+  source("dependencies.R")
 
   # Shiny app with 3 fields that the user can submit data for
   ui <- dashboardPage(
