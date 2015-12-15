@@ -1,18 +1,20 @@
 Package: timetrackr
 Type: Package
-Title: What the Package Does (Title Case)
+Title: A simple time tracking tool
 Version: 0.1
-Date: 2015-12-10
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What license is it under?
+Date: 2015-11-04
+Authors@R: person("Janko", "Thyson", email = "janko.thyson@rappster.de",
+    role = c("aut", "cre"))
+Description: Allows to manage taks/issues and log time against them.
+URL: https://github.com/rappster/timetrackr
+License: GPL (>= 3)
 LazyData: TRUE
 Imports:
     R6
 Suggests:
-    testthat,
     knitr,
-    rmarkdown
+    rmarkdown,
+    settings,
+    testthat
 VignetteBuilder: knitr
 RoxygenNote: 5.0.0

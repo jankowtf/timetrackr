@@ -19,12 +19,10 @@ devtools::install_github("rappster/timetrackr")
 require("timetrackr")
 ```
 
-## Examples
+## Note
 
-TODO
+The package powers the associated [shiny application]() that is located in subdirectory `/apps/timetrackr`. 
 
-## Further examples
-
-See vignettes: 
+## Vignettes
 
 - [Introduction](https://github.com/rappster/timetrackr/tree/master/vignettes/introduction.Rmd) (rendered versions available in R via `vignette("introduction", package = "timetrackr")`)

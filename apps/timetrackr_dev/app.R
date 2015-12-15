@@ -89,8 +89,8 @@ if (app_stage == "v1.1") {
         menuItem("Admin access", tabName = "admin_access",
           icon = icon("lock")),
         tags$hr(),
-        menuItem("Info", tabName = "info",
-          icon = icon("info"))
+        menuItem("Info", tabName = "info", icon = icon("info")),
+        menuItem("Experimental", tabName = "experimental", icon = icon("flask"))
       )
     ),
     ## Body content
@@ -99,12 +99,14 @@ if (app_stage == "v1.1") {
         tabItem(
           tabName = "tasks",
           fluidRow(
-            column(width = 7, div()),
-            column(width = 3,
-              actionButton("action_task_create", "Create task", type = "toggle")
+            column(width = 7,
+              div()
             ),
-            tags$hr()
+            column(width = 3,
+              actionButton("action_task_create", "Create task")
+            )
           ),
+          p(),
           fluidRow(
             column(width = 7,
               box(
@@ -145,22 +147,7 @@ if (app_stage == "v1.1") {
         tabItem(
           tabName = "admin_access",
           fluidRow(
-            column(width = 6,
-              box(
-                DT::dataTableOutput("timetracking2", width = 300),
-                width = NULL
-              )
-            ),
-            column(width = 4,
-              uiOutput('admin_ui'),
-              uiOutput('delete_ui')
-            )
-          ),
-          fluidRow(
-            box(
-              title = "Selection info",
-              verbatimTextOutput('timetracking2_rows')
-            )
+
           )
         ),
         tabItem(
@@ -168,17 +155,56 @@ if (app_stage == "v1.1") {
           fluidRow(
             box(
               title = "Time format",
-              p("Possible formats (examples):"),
-              div("* '1.5' (treated as hours)"),
-              div("* '1.5d' (days, a day has 8 hours)"),
-              div("* '1.5h' (hours)"),
-              div("* '1.5m' (minutes)"),
-              div("* '1d 2h 30m'"),
+              p("Possible formats for time inputs (examples):"),
+              div("* 1.5: 1.5 hours"),
+              div("* 1.5d: 12 hours (a day has 8 hours)"),
+              div("* 1.5h: 1.5 hours"),
+              div("* 45m: 0.75 hours"),
+              div("* 1d 2h 30m: 10.5 hours"),
               p(),
               strong("NOTE:"),
-              strong("* No quotes necessary for input"),
-              strong("* Everything is transformed to hours before DB write")
+              p(),
+              div(strong("* Everything is transformed to hours before DB commit")),
+              width = 12
             )
+          )
+        ),
+        tabItem("experimental",
+          fluidRow(
+            box(
+              selectInput(
+                "plotType", "Plot Type",
+                c(Scatter = "scatter",
+                  Histogram = "hist")),
+
+              # Only show this panel if the plot type is a histogram
+              conditionalPanel(
+                condition = "input.plotType == 'hist'",
+                selectInput(
+                  "breaks", "Breaks",
+                  c("Sturges",
+                    "Scott",
+                    "Freedman-Diaconis",
+                    "[Custom]" = "custom")),
+
+                # Only show this panel if Custom is selected
+                conditionalPanel(
+                  condition = "input.breaks == 'custom'",
+                  sliderInput("breakCount", "Break Count", min=1, max=1000, value=10)
+                )
+              )
+            ),
+            conditionalPanel(
+              condition = "input.dt_issues_rows_selected > 0",
+              box(
+                sliderInput("breakCount", "Break Count", min=1, max=1000, value=10)
+              )
+            )
+          ),
+          fluidRow(
+            box(actionButton("action_exp_1", "Trigger 1"), width = 3),
+            uiOutput("ui_experimental"),
+            box(textOutput("exp"))
           )
         )
       )
@@ -277,20 +303,101 @@ if (app_stage == "v1.1") {
     ## Issues //
     output$dt_issues <- DT::renderDataTable({
       renderResults_dbTableIssues(input)
-    }, # filter = "top",
+    }, filter = "top",
       width = "100%", class = "cell-border stripe",
+      selection = "single",
       options = list(
+        dom = "ltipr",
         autoWidth = TRUE,
         columnDefs = list(list(width = '300px', targets = "_all"))
+
       )
     )
     ## Times //
     output$dt_times <- DT::renderDataTable({
       renderResults_dbTableTimes(input,
         uids = list(uid_issues = uid_issues))
-    })
+    }, selection = "single", options = list(dom = "ltipr"))
+
+    ###########
+    ## DEBUG ##
+    ###########
 
     handleDebugInfo(input = input, output = output)
+
+    ##################
+    ## EXPERIMENTAL ##
+    ##################
+
+    reactives <- reactiveValues(
+      action_exp_1 = 0,
+      action_exp_1__last = 0,
+      action_exp_cancel = 0,
+      action_exp_cancel__last = 0,
+      ui_decision = "hide"
+    )
+    ui_decision <- reactive({
+
+      ## Dependencies //
+      ## Trigger button:
+      value <- input$action_exp_1
+      if (reactives$action_exp_1 != value) reactives$action_exp_1 <- value
+
+      ## Cancel button that is dynamically created within `createDynamicUi_experimental`
+      value <- input$action_exp_cancel
+      if (is.null(value)) {
+        value <- 0
+      }
+      if (reactives$action_exp_cancel != value) reactives$action_exp_cancel <- value
+
+      if (GLOBALS$debug$enabled) {
+        message("Dependency clearance -----")
+        message("action_exp_1:")
+        print(reactives$action_exp_1)
+        print(reactives$action_exp_1__last)
+        message("action_exp_cancel:")
+        print(reactives$action_exp_cancel)
+        print(reactives$action_exp_cancel__last)
+      }
+      ui_decision <- if (
+        c (reactives$action_exp_1 == 0 && reactives$action_exp_1 == 0) ||
+          c(
+            reactives$action_exp_1 > 0 &&
+              reactives$action_exp_1 <= reactives$action_exp_1__last &&
+
+              reactives$action_exp_cancel > 0 &&
+              reactives$action_exp_cancel > reactives$action_exp_cancel__last
+          )
+      ) {
+        "hide"
+      } else if (
+        reactives$action_exp_1 >= reactives$action_exp_1__last
+      ) {
+        reactives$action_exp_cancel__last <- reactives$action_exp_cancel
+        "show"
+      } else {
+        "Not implemented yet"
+      }
+      if (GLOBALS$debug$enabled) {
+        print(ui_decision)
+      }
+      ## Synchronize //
+      reactives$action_exp_1__last <- reactives$action_exp_1
+
+      reactives$ui_decision <- ui_decision
+
+      # Sys.sleep(1)
+      ## --> just to be able to escape infinite recursions
+    })
+
+    output$ui_experimental <- renderUI({
+      ui_decision()
+      createDynamicUi_experimental(input, output,
+        ui_decision = reactives$ui_decision)
+    })
+
+    # output$exp <- renderPrint({dep_clearance()})
+    output$exp <- renderPrint({reactiveValuesToList(reactives)})
   }
 }
 
