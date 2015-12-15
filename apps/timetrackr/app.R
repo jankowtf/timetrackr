@@ -1,8 +1,5 @@
-##------------------------------------------------------------------------------
-## Meta //
-##------------------------------------------------------------------------------
 
-drat::addRepo("rappster")
+# Meta --------------------------------------------------------------------
 
 library(shiny)
 library(shinydashboard)
@@ -13,7 +10,8 @@ app_name <- "Time tracking"
 source("dependencies.R")
 source("global.R")
 
-# Shiny app with 3 fields that the user can submit data for
+# UI ----------------------------------------------------------------------
+
 ui <- dashboardPage(
   ## Header //
   dashboardHeader(title = app_name),
@@ -149,6 +147,8 @@ ui <- dashboardPage(
     )
   )
 )
+
+# Server ------------------------------------------------------------------
 
 server <- function(input, output, session) {
   app$prepare(
@@ -339,6 +339,6 @@ server <- function(input, output, session) {
   output$exp <- renderPrint({reactiveValuesToList(reactives)})
 }
 
-# Launch app ---------------------------------------------------------------
+# Launch  ---------------------------------------------------------------
 
 shinyApp(ui, server)

@@ -1,6 +1,4 @@
 
-# Packages ----------------------------------------------------------------
-
 # Variables ---------------------------------------------------------------
 
 GLOBALS <- list()
@@ -228,6 +226,9 @@ createDynamicUi_issueDetails <- function(
   field <- "issue_week"
   name <- "Week"
   value <- getFormValue(field = field, idx = action_selected_row)
+  if (is.na(value)) {
+    value <- as.numeric(format(Sys.Date(), "%V"))
+  }
   container[[field]] <- numericInput(field, name, value,
     min = 1, max = 53, step = 1)
 
