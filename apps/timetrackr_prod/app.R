@@ -10,9 +10,8 @@ debug_mode <- FALSE
 ## App name //
 app_name <- "Time tracking"
 
-
-source("global.R")
 source("dependencies.R")
+source("global.R")
 
 # Shiny app with 3 fields that the user can submit data for
 ui <- dashboardPage(
