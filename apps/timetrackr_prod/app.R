@@ -2,10 +2,10 @@
 ## Meta //
 ##------------------------------------------------------------------------------
 
+addRepo("rappster")
+
 library(shiny)
 library(shinydashboard)
-
-debug_mode <- FALSE
 
 ## App name //
 app_name <- "Time tracking"
