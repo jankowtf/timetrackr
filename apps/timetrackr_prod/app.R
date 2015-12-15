@@ -2,7 +2,7 @@
 ## Meta //
 ##------------------------------------------------------------------------------
 
-addRepo("rappster")
+drat::addRepo("rappster")
 
 library(shiny)
 library(shinydashboard)
