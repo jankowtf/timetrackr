@@ -1,7 +1,7 @@
 Package: timetrackr
 Type: Package
 Title: A simple time tracking tool
-Version: 0.2
+Version: 0.2.1
 Date: 2015-12-16
 Authors@R: person("Janko", "Thyson", email = "janko.thyson@rappster.de",
     role = c("aut", "cre"))
