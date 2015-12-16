@@ -20,6 +20,7 @@ ui <- dashboardPage(
   ## Sidebar content //
   dashboardSidebar(
     sidebarMenu(
+      id = "tabs",
       menuItem("Tasks", tabName = "tasks",
         icon = icon("database")),
       menuItem("Projects", tabName = "projects",
@@ -87,23 +88,23 @@ ui <- dashboardPage(
           box(
             title = "Time format",
             div(id = "time_formats",
-              HTML("<script>$('#linkToTimeFormats').click(function() {
-						 tabs = $('.tabbable .nav.nav-tabs li')
-					 	 tabs.each(function() {
-							$(this).removeClass('active')
-					 	 })
-						 $(tabs[1]).addClass('active')
-
-						 tabsContents = $('.tabbable .tab-content .tab-pane')
-					 	 tabsContents.each(function() {
-							$(this).removeClass('active')
-					 	 })
-						 $(tabsContents[1]).addClass('active')
-
-						$('#summary').trigger('change').trigger('shown');
-
-					 })</script>
-			"),
+#               HTML("<script>$('#linkToTimeFormats').click(function() {
+# 						 tabs = $('.tabbable .nav.nav-tabs li')
+# 					 	 tabs.each(function() {
+# 							$(this).removeClass('active')
+# 					 	 })
+# 						 $(tabs[1]).addClass('active')
+#
+# 						 tabsContents = $('.tabbable .tab-content .tab-pane')
+# 					 	 tabsContents.each(function() {
+# 							$(this).removeClass('active')
+# 					 	 })
+# 						 $(tabsContents[1]).addClass('active')
+#
+# 						$('#summary').trigger('change').trigger('shown');
+#
+# 					 })</script>
+# 			"),
               p("Possible formats for time inputs (examples):"),
               tags$li("1.5: 1.5 hours"),
               tags$li("1.5d: 12 hours (a day has 8 hours)"),
@@ -152,6 +153,11 @@ server <- function(input, output, session) {
   })
   uid_times <- reactive({
     getUids_dbTableTimes(input = input)
+  })
+
+  observeEvent(input$goto_info, {
+    newvalue <- "info"
+    updateTabItems(session, "tabs", newvalue)
   })
 
   ########################

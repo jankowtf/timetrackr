@@ -21,7 +21,7 @@ require("timetrackr")
 
 ## Note
 
-The package powers the associated [shiny application]() that is located in subdirectory `/apps/timetrackr`. 
+The package powers the associated shiny app that is located in subdirectory `/apps/timetrackr`. You can play around with a copy of the app on [shinyapps.io](https://rappster.shinyapps.io/timetrackr)
 
 ## Vignettes
 

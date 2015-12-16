@@ -220,10 +220,10 @@ createDynamicUi_timeDetails <- function(
   value <- getFormValue(field = field, idx = action_dt_times_selected_row)
   container[[field]] <- textInput(field, name, value)
 
-  # container$goto_info <- actionLink("goto_info", "Time formats")
+  container$goto_info <- actionLink("goto_info", "Valid time formats")
   # container$p <- p(HTML("<a href='#timeformats'>Valid time formats</a> (link broken, see info tab)"))
-  container$timeformats <- div(id="linkToTimeFormats",
-    tags$a("Valid time formats (see info tab)"))
+#   container$timeformats <- div(id="linkToTimeFormats",
+#     tags$a("Valid time formats (see info tab)"))
 
   field <- "issue_time_logged_date"
   name <- "Date"
