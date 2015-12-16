@@ -54,7 +54,7 @@ ui <- dashboardPage(
             uiOutput("ui_form_loggedtimes")
           ),
           column(width = 3,
-            uiOutput('ui_form_logtime2'),
+            uiOutput('ui_form_logtime'),
             uiOutput("ui_form_taskdetails")
           )
         ),
@@ -178,8 +178,8 @@ server <- function(input, output, session) {
   output$ui_form_taskdetails <- renderUI({
     createDynamicUi_issueDetails(input, output)
   })
-  output$ui_form_logtime2 <- renderUI({
-    createDynamicUi_logTime2(input, output)
+  output$ui_form_logtime <- renderUI({
+    createDynamicUi_logtime(input, output)
   })
   output$ui_form_loggedtimes <- renderUI({
     createDynamicUi_displayLoggedTimes(input, output)

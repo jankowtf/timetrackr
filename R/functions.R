@@ -63,7 +63,7 @@ prepareDatabase <- function(
       times_public_fields_details,
       times_private_fields
     )
-    print(fields)
+    # print(fields)
     value <- sapply(fields, function(ii) {
       paste(ii$name, ii$datatype)
     })
@@ -243,7 +243,6 @@ saveData <- function(data,
   if (!length(uid)) {
     ## --> create
     ## Ensure //
-    print("Doing a create")
     values$issue_time_spent <- 0
     values$time_until_done <- values$time_estimated
     ## TODO: this is sort of a bug, shouldn't be necessary
@@ -347,7 +346,7 @@ logTime <- function(
       "_time_created" = as.character(now)
     )
 
-    print(values_this)
+    # print(values_this)
     # print(values)
 
     query <- sprintf(

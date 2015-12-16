@@ -82,113 +82,11 @@ app <- App.Timetracking$new(
 createDynamicUi_issueDetails <- function(
   input,
   output,
+  ui_control,
   debug = GLOBALS$debug$enabled
 ) {
-  if (debug) {
-    message("Dynamic UI: issues ----------")
-    print(Sys.time())
-  }
-
   ## Dependencies //
-  action_selected_row <- input$dt_issues_rows_selected
-  if (debug) {
-    message("action_selected_row:")
-    print(action_selected_row)
-  }
-
-  action_task_create <- input$action_task_create
-  if (debug) {
-    message("action_task_create:")
-    message(paste0("* Current: ", action_task_create))
-    message(paste0("* Buffered: ", GLOBALS$buffer$action_task_create))
-  }
-
-  action_task_create_2 <- input$action_task_create_2
-  # action_task_create_cancel <- isolate(input$action_task_create_cancel)
-  if (is.null(action_task_create_2)) {
-    action_task_create_2 <- 0
-  }
-  if (debug) {
-    message("action_task_create_2:")
-    message(paste0("* Current: ", action_task_create_2))
-    message(paste0("* Buffered: ", GLOBALS$buffer$action_task_create_2))
-  }
-
-  action_task_create_cancel <- input$action_task_create_cancel
-  # action_task_create_cancel <- isolate(input$action_task_create_cancel)
-  if (is.null(action_task_create_cancel)) {
-    action_task_create_cancel <- 0
-  }
-  if (debug) {
-    message("action_task_create_cancel:")
-    message(paste0("* Current: ", action_task_create_cancel))
-    message(paste0("* Buffered: ", GLOBALS$buffer$action_task_create_cancel))
-  }
-
-  action_task_update_cancel <- input$action_task_update_cancel
-  # action_task_update_cancel <- isolate(input$action_task_update_cancel)
-  if (is.null(action_task_update_cancel)) {
-    action_task_update_cancel <- 0
-  }
-  if (debug) {
-    message("action_task_update_cancel:")
-    message(paste0("* Current: ", action_task_update_cancel))
-    message(paste0("* Buffered: ", GLOBALS$buffer$action_task_update_cancel))
-  }
-
-  decideOnUi <- function(
-    action_selected_row,
-    action_task_create,
-    action_task_create_cancel,
-    buffer,
-    debug
-  ) {
-    ## Initial state //
-    value <- if (
-      !length(action_selected_row) &&
-        c(
-          action_task_create <= buffer$action_task_create &&
-            action_task_create_cancel <= buffer$action_task_create_cancel
-        ) ||
-        action_task_create_2 > buffer$action_task_create_2
-    ) {
-      "hide"
-    } else if (
-      # c(!length(action_selected_row) &&
-      action_task_create > buffer$action_task_create
-    ) {
-      "create"
-    } else if (
-      # !length(action_selected_row) &&
-      # action_task_create == buffer$action_task_create &&
-      c(
-        action_task_create_cancel > buffer$action_task_create_cancel ||
-          action_task_update_cancel > buffer$action_task_update_cancel
-      )
-    ) {
-      "cancel"
-    } else if (
-      length(action_selected_row) &&
-        action_task_create == buffer$action_task_create &&
-        action_task_create_cancel <= buffer$action_task_create_cancel
-    ) {
-      "update"
-    } else {
-      "NIY"
-    }
-    if (debug) {
-      message("UI decision:")
-      print(value)
-    }
-    value
-  }
-  ui_decision <- decideOnUi(
-    action_selected_row = action_selected_row,
-    action_task_create = action_task_create,
-    action_task_create_cancel = action_task_create_cancel,
-    buffer = GLOBALS$buffer,
-    debug = debug
-  )
+  action_selected_row <- ui_control$selected
 
   ## Aux function //
   getFormValue <- function(field, idx, default = "") {
@@ -263,126 +161,41 @@ createDynamicUi_issueDetails <- function(
   container[[field]] <- checkboxInput(field, name, value = value)
 
   ## Bundle in box //
-  value <- if (ui_decision == "hide") {
-    div()
-  } else if (ui_decision == "create") {
+  value <- if (ui_control$case == "create") {
     container$buttons <- div(style="display:inline-block",
       actionButton("action_task_create_2", "Create"),
       actionButton("action_task_create_cancel", "Cancel")
     )
     do.call(box, args = list(container, title = "Create task",
       status = "primary", width = NULL))
-  } else if (ui_decision == "cancel") {
-    div()
-  } else if (ui_decision == "update") {
+  } else if (ui_control$case == "update") {
     container$buttons <- div(style="display:inline-block",
       actionButton("action_task_update", "Update"),
-      actionButton("action_task_update_cancel", "Cancel"),
+      # actionButton("action_task_update_cancel", "Cancel"),
       p(),
       actionButton("action_task_delete", "Delete",
         icon = icon("exclamation-triangle"))
     )
     do.call(box, args = list(container, title = "Update task",
       status = "danger", width = NULL))
+  } else {
+    stop("Not implemented")
   }
-
-  #     ## Resets //
-  #     attr(input, "readonly") <- FALSE
-  #     if (action_task_create_cancel >= 1) {
-  #       input$action_task_create_cancel <- structure(
-  #         0, class = c("integer", "shinyActionButtonValue"))
-  #     }
-  # #     if (action_task_create > 0) {
-  # #       input$action_task_create <- structure(
-  # #         0, class = c("integer", "shinyActionButtonValue"))
-  # #     }
-  #     attr(input, "readonly") <- TRUE
-
-  ## Remember counter //
-  GLOBALS$buffer$action_task_create <- action_task_create
-  GLOBALS$buffer$action_task_create_2 <- action_task_create_2
-  GLOBALS$buffer$action_task_create_cancel <- action_task_create_cancel
-  GLOBALS$buffer$action_task_update_cancel <- action_task_update_cancel
-
   value
 }
 
-# Dynamic UI: log time 2 ----------------------------------------------------
+# Dynamic UI: create time ----------------------------------------------------
 
-createDynamicUi_logTime2 <- function(
+createDynamicUi_timeDetails <- function(
   input,
   output,
+  ui_control,
   debug = GLOBALS$debug$enabled
 ) {
-  if (debug) {
-    message("Dynamic UI: log time ----------\n")
-    print(Sys.time())
-  }
 
   ## Dependencies //
-  action_dt_issues_selected_row <- input$dt_issues_rows_selected
-  if (debug) {
-    message("action_dt_issues_selected_row:")
-    print(action_dt_issues_selected_row)
-  }
-
-  action_dt_times_selected_row <- input$dt_times_rows_selected
-  if (debug) {
-    message("action_dt_times_selected_row:")
-    print(action_dt_times_selected_row)
-  }
-
-  action_time_update_cancel <- input$action_time_update_cancel
-  # action_time_update_cancel <- isolate(input$action_time_update_cancel)
-  if (is.null(action_time_update_cancel)) {
-    action_time_update_cancel <- 0
-  }
-  if (debug) {
-    message("action_time_update_cancel:")
-    message(paste0("* Current: ", action_time_update_cancel))
-    message(paste0("* Buffered: ", GLOBALS$buffer$action_time_update_cancel))
-  }
-
-  decideOnUi <- function(
-    action_dt_issues_selected_row,
-    action_dt_times_selected_row,
-    action_time_update_cancel,
-    buffer,
-    debug
-  ) {
-    ## Initial state //
-    value <- if (
-      length(action_dt_issues_selected_row) &&
-        !length(action_dt_times_selected_row)
-    ) {
-      "create"
-    } else if (
-      # length(action_dt_times_selected_row) &&
-      action_time_update_cancel > buffer$action_time_update_cancel
-    ) {
-      "cancel update"
-    } else if (
-      length(action_dt_issues_selected_row) &&
-        length(action_dt_times_selected_row)
-      # action_time_update_cancel <= buffer$action_time_update_cancel
-    ) {
-      "update"
-    } else {
-      "NIY"
-    }
-    if (debug) {
-      message("Log time UI decision:")
-      print(value)
-    }
-    value
-  }
-  ui_decision <- decideOnUi(
-    action_dt_issues_selected_row = action_dt_issues_selected_row,
-    action_dt_times_selected_row = action_dt_times_selected_row,
-    action_time_update_cancel = action_time_update_cancel,
-    buffer = GLOBALS$buffer,
-    debug = debug
-  )
+  action_dt_issues_selected_row <- ui_control$selected_issue
+  action_dt_times_selected_row <- ui_control$selected_times
 
   ## Aux function //
   getFormValue <- function(field, idx, default = "") {
@@ -407,6 +220,11 @@ createDynamicUi_logTime2 <- function(
   value <- getFormValue(field = field, idx = action_dt_times_selected_row)
   container[[field]] <- textInput(field, name, value)
 
+  # container$goto_info <- actionLink("goto_info", "Time formats")
+  # container$p <- p(HTML("<a href='#timeformats'>Valid time formats</a> (link broken, see info tab)"))
+  container$timeformats <- div(id="linkToTimeFormats",
+    tags$a("Valid time formats (see info tab)"))
+
   field <- "issue_time_logged_date"
   name <- "Date"
   value <- getFormValue(field = field, idx = action_dt_times_selected_row,
@@ -418,13 +236,13 @@ createDynamicUi_logTime2 <- function(
   value <- getFormValue(field = field, idx = action_dt_times_selected_row)
   container[[field]] <- textInput(field, name, value)
 
-  value <- if (ui_decision == "create") {
+  value <- if (ui_control$case == "create") {
     container$buttons <- div(style="display:inline-block",
-      actionButton("action_time_log", "Log")
+      actionButton("action_time_create", "Log")
     )
     do.call(box, args = list(container, title = "Log time",
       status = "primary", width = NULL))
-  } else if (ui_decision == "update") {
+  } else if (ui_control$case == "update") {
     container$buttons <- div(style="display:inline-block",
       actionButton("action_time_update", "Update"),
       actionButton("action_time_update_cancel", "Cancel"),
@@ -434,38 +252,29 @@ createDynamicUi_logTime2 <- function(
     )
     do.call(box, args = list(container, title = "Update time",
       status = "danger", width = NULL))
-  } else if (ui_decision == "cancel update") {
-    ## Same as `ui_decision == "cancel update"` //
-    container$buttons <- div(style="display:inline-block",
-      actionButton("action_time_log", "Log")
-    )
-    do.call(box, args = list(container, title = "Log time",
-      status = "primary", width = NULL))
+  } else {
+    stop("Not implemented")
   }
-
-  ## Remember counter //
-  GLOBALS$buffer$action_time_update_cancel <- action_time_update_cancel
 
   value
 }
 
-# Dynamic UI: display logged times ------------------------------------------------
+# Dynamic UI: display times ------------------------------------------------
 
-createDynamicUi_displayLoggedTimes <- function(input, output) {
+createDynamicUi_displayTimes <- function(
+  input,
+  output,
+  ui_control_ref
+) {
   ## Dependencies //
-  action_selected_row <- input$dt_issues_rows_selected
+  selected_ref <- ui_control_ref$selected
 
   container <- list()
   container$dt_times <- DT::dataTableOutput("dt_times")
 
   ## Bundle in box //
-  value <- if (length(action_selected_row)) {
-    do.call(box, args = list(container, title = "Logged times",
-      status = "primary", width = NULL))
-  } else {
-    div()
-  }
-  value
+  do.call(box, args = list(container, title = "Logged times",
+    status = "primary", width = NULL))
 }
 
 # Dynamic UI: experimental ----------------------------------------------
@@ -552,7 +361,7 @@ getUids_dbTableTimes <- function(input) {
 
 performAction_createIssue <- function(input_bundles = list(), uids = list()) {
   saveData(
-    data = input_bundles$inputbundle_db_table_issues(),
+    data = input_bundles$bundle_db_table_issues(),
     table = GLOBALS$db$tables$issues$tablename,
     uid = uids$uid_issues()
   )
@@ -560,7 +369,7 @@ performAction_createIssue <- function(input_bundles = list(), uids = list()) {
 
 performAction_updateIssue <- function(input_bundles = list(), uids = list()) {
   saveData(
-    data = input_bundles$inputbundle_db_table_issues(),
+    data = input_bundles$bundle_db_table_issues(),
     table = GLOBALS$db$tables$issues$tablename,
     uid = uids$uid_issues()
   )
@@ -576,11 +385,12 @@ performAction_deleteIssue <- function(input_bundles = list(), uids = list()) {
   )
 }
 
-performAction_logTime <- function(input_bundles = list(), uids = list()) {
+performAction_createTime <- function(input_bundles = list(), uids = list()) {
   logTime(
     table = GLOBALS$db$tables$issues$tablename,
     uid = uids$uid_issues(),
-    values = input_bundles$inputbundle_db_table_times())
+    values = input_bundles$bundle_db_table_times()
+  )
 }
 
 performAction_updateTime <- function(input_bundles = list(), uids = list()) {
@@ -588,7 +398,7 @@ performAction_updateTime <- function(input_bundles = list(), uids = list()) {
   updateSpecific(
     table = GLOBALS$db$tables$times$tablename,
     uid = uids$uid_times(),
-    values = as.list(input_bundles$inputbundle_db_table_times()),
+    values = as.list(input_bundles$bundle_db_table_times()),
     refuid = uids$uid_issues()
   )
 
@@ -627,33 +437,19 @@ performAction_deleteTime <- function(input_bundles = list(), uids = list()) {
 
 # Render results ----------------------------------------------------------
 
-renderResults_dbTableIssues <- function(input, uids = list()) {
-  ## Dependencies: issues //
-  input$action_task_create_2
-  input$action_task_update
-  input$action_task_delete
-
-  ## Dependencies: times //
-  input$action_task_update
-  input$action_time_log
-  input$action_time_update
-  input$action_time_delete
-
+renderResults_dbTableIssues <- function() {
   data <- loadData(table = GLOBALS$db$tables$issues$tablename)
   prepareForDisplay(data, GLOBALS$db$tables$issues$public_fields_compact)
 }
 
-renderResults_dbTableTimes <- function(input, uids = list()) {
+renderResults_dbTableTimes <- function(
+  uids = list(),
+  ui_control_ref = list()
+) {
   ## Dependencies: issues //
-  action_dt_issues_rows_selected <- input$dt_issues_rows_selected
-  input$action_task_delete
+  selected_ref <- ui_control_ref$selected
 
-  ## Dependencies: times //
-  input$action_time_log
-  input$action_time_update
-  input$action_time_delete
-
-  value <- if (length(action_dt_issues_rows_selected)) {
+  value <- if (length(selected_ref)) {
     dat <- loadData(
       table = GLOBALS$db$tables$times$tablename,
       refuid = uids$uid_issues()
@@ -706,4 +502,3 @@ handleDebugInfo <- function(input, output) {
 }
 
 # DEPRECATED  -------------------------------------------------------------
-
