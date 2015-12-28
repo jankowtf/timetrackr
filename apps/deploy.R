@@ -1,13 +1,14 @@
 
-
-# Install dependencies ----------------------------------------------------
-
-devtools::install_github("rappster/timetrackr")
-
-# Copy dev to productive --------------------------------------------------
+# Meta --------------------------------------------------------------------
 
 name <- "timetrackr"
 vsn <- "v0.2.2"
+
+# Install dependencies ----------------------------------------------------
+
+devtools::install_github("rappster/timetrackr", ref = sprintf("release_%s", vsn))
+
+# Copy dev to productive --------------------------------------------------
 
 vsn_name <- sprintf("%s_%s", name, vsn)
 from <- file.path("apps", vsn_name)
