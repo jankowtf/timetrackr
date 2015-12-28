@@ -2,6 +2,6 @@
 .Rhistory
 .RData
 inst/doc
-#apps/*/data/*
+apps/*/data/*
 #apps/*/rsconnect/*
-apps/*
+#apps/*
