@@ -7,7 +7,7 @@ devtools::install_github("rappster/timetrackr")
 # Copy dev to productive --------------------------------------------------
 
 name <- "timetrackr"
-vsn <- "v0.2.1"
+vsn <- "v0.2.2"
 
 vsn_name <- sprintf("%s_%s", name, vsn)
 from <- file.path("apps", vsn_name)

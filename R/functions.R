@@ -25,6 +25,7 @@ prepareDatabase <- function(
   ...
 ) {
   if (!file.exists(sqlite_path)) {
+    dir.create(dirname(sqlite_path), recursive = TRUE, showWarnings = FALSE)
     file.create(sqlite_path)
   }
   db <- dbConnect(SQLite(), sqlite_path)
@@ -234,6 +235,9 @@ saveData <- function(data,
   ## Connect to the database //
   db <- dbConnect(SQLite(), sqlite_path)
   now <- Sys.time()
+
+  data$issue_date <- as.character(data$issue_date)
+  data$issue_week = format(as.Date(data$issue_date), "%V")
 
   values <- c(
     data
