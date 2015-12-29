@@ -96,12 +96,12 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
   app$prepare(
-    public_fields_compact = GLOBALS$db$tables$issues$public_fields_compact,
-    public_fields_details = GLOBALS$db$tables$issues$public_fields_details,
-    private_fields = GLOBALS$db$tables$issues$private_fields,
-    times_public_fields_compact = GLOBALS$db$tables$times$public_fields_compact,
-    times_public_fields_details = GLOBALS$db$tables$times$public_fields_details,
-    times_private_fields = GLOBALS$db$tables$times$private_fields
+    public_fields_compact = GLOBAL$db$tables$issues$public_fields_compact,
+    public_fields_details = GLOBAL$db$tables$issues$public_fields_details,
+    private_fields = GLOBAL$db$tables$issues$private_fields,
+    times_public_fields_compact = GLOBAL$db$tables$times$public_fields_compact,
+    times_public_fields_details = GLOBAL$db$tables$times$public_fields_details,
+    times_private_fields = GLOBAL$db$tables$times$private_fields
   )
 
   ##################
