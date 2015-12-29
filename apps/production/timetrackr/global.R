@@ -1,15 +1,15 @@
 
+# Packages ----------------------------------------------------------------
 
-
+library(shiny)
+library(shinydashboard)
 
 # Variables ---------------------------------------------------------------
 
 GLOBAL <- list()
 GLOBAL$debug$enabled <- TRUE
 
-GLOBAL$valids <- list(
-  issueStatus = VALIDS_issueStatus
-)
+GLOBAL$valids <- list(issueStatus = VALIDS_issueStatus)
 
 # Buffer ------------------------------------------------------------------
 
@@ -242,7 +242,13 @@ composeUi_issueDetails <- function(input,
   container[[field]] <- div(
     class = "form-group shiny-input-container",
     tags$label("for" = name, name),
-    tags$textarea(id = field, rows = 3, cols = 30, value, class = "form-control")
+    tags$textarea(
+      id = field,
+      rows = 3,
+      cols = 30,
+      value,
+      class = "form-control"
+    )
   )
 
   field <- "issue_project"
@@ -265,7 +271,8 @@ composeUi_issueDetails <- function(input,
 
   field <- "issue_date"
   name <- "Date"
-  value <- getFormValue(field = field,
+  value <- getFormValue(
+    field = field,
     idx = action_selected_row,
     # default = as.character(Sys.Date())
     default = GLOBAL$db$tables$issues$public_fields_compact[[field]]$default
@@ -274,14 +281,17 @@ composeUi_issueDetails <- function(input,
 
   field <- "issue_status"
   name <- "Status"
-  value <- getFormValue(field = field,
+  value <- getFormValue(
+    field = field,
     idx = action_selected_row,
     # default = GLOBAL$valids$issueStatus()["todo"]
     default = GLOBAL$db$tables$issues$public_fields_compact[[field]]$default
   )
   # print(value)
-  container[[field]] <- selectInput(field, name,
-    unname(GLOBAL$valids$issueStatus()), selected = unname(value))
+  container[[field]] <- selectInput(field,
+    name,
+    unname(GLOBAL$valids$issueStatus()),
+    selected = unname(value))
   # print(container[[field]])
   ## TODO 2015-12-29: check why pre-selection does not work
 
@@ -290,7 +300,8 @@ composeUi_issueDetails <- function(input,
   value <- getFormValue(field = field, idx = action_selected_row)
   container[[field]] <- textInput(field, name, value)
 
-  container$goto_info <- actionLink("goto_info", "Valid time formats")
+  container$goto_info <-
+    actionLink("goto_info", "Valid time formats")
 
   field <- "issue_unplanned"
   name <- "Unplanned"
@@ -366,8 +377,8 @@ composeUi_timeDetails <- function(input,
   ui_control,
   debug = GLOBAL$debug$enabled) {
   ## Dependencies //
-  action_dt_issues_selected_row <- ui_control$selected_issue
-  action_dt_times_selected_row <- ui_control$selected_times
+  # action_dt_issues_selected_row <- ui_control$selected_issue
+  action_dt_times_selected_row <- ui_control$selected
 
   ## Aux function //
   getFormValue <- function(field, idx, default = "") {
@@ -389,22 +400,26 @@ composeUi_timeDetails <- function(input,
 
   field <- "issue_time_logged"
   name <- "Time spent"
-  value <-
-    getFormValue(field = field, idx = action_dt_times_selected_row)
+  value <- getFormValue(
+    field = field,
+    idx = action_dt_times_selected_row,
+    default = GLOBAL$db$tables$times$public_fields_compact[[field]]$default
+  )
   container[[field]] <- textInput(field, name, value)
 
-  container$goto_info <-
-    actionLink("goto_info", "Valid time formats")
+  container$goto_info <- actionLink("goto_info", "Valid time formats")
   # container$p <- p(HTML("<a href='#timeformats'>Valid time formats</a> (link broken, see info tab)"))
   #   container$timeformats <- div(id="linkToTimeFormats",
   #     tags$a("Valid time formats (see info tab)"))
 
   field <- "issue_time_logged_date"
   name <- "Date"
-  value <-
-    getFormValue(field = field,
-      idx = action_dt_times_selected_row,
-      default <- as.character(Sys.Date()))
+  value <- getFormValue(
+    field = field,
+    idx = action_dt_times_selected_row,
+    # default = as.character(Sys.Date())
+    default = GLOBAL$db$tables$times$public_fields_compact[[field]]$default
+  )
   container[[field]] <- dateInput(field, name, value = value)
 
   field <- "issue_time_logged_description"
@@ -414,7 +429,13 @@ composeUi_timeDetails <- function(input,
   container[[field]] <- div(
     class = "form-group shiny-input-container",
     tags$label("for" = name, name),
-    tags$textarea(id = field, rows = 3, cols = 30, value, class = "form-control")
+    tags$textarea(
+      id = field,
+      rows = 3,
+      cols = 30,
+      value,
+      class = "form-control"
+    )
   )
 
   value <- if (ui_control$case == "create") {
@@ -599,25 +620,24 @@ act_deleteTime <- function(input_bundles = list(),
 }
 
 act_resetIssueInput <- function(session) {
-  handleInputUpdate <- function(field) {
-    name <- field$name
-    default <- field$default
-    switch(
-      class(default),
-      "character" = updateTextInput(session, name, value = default),
-      "integer" = updateNumericInput(session, name, value = default),
-      "numeric" = updateNumericInput(session, name, value = default),
-      "Date" = updateDateInput(session, name, value = default),
-      "logical" = updateCheckboxInput(session, name, value = default)
-    )
-  }
-
-  sapply(GLOBAL$db$tables$issues$public_fields_compact, function(field) {
-    handleInputUpdate(field)
+  field <- "issues"
+  sapply(GLOBAL$db$tables[[field]]$public_fields_compact, function(field) {
+    handleInputUpdate(field, session)
   })
 
-  sapply(GLOBAL$db$tables$issues$public_fields_details, function(field) {
-    handleInputUpdate(field)
+  sapply(GLOBAL$db$tables[[field]]$public_fields_details, function(field) {
+    handleInputUpdate(field, session)
+  })
+}
+
+act_resetTimesInput <- function(session) {
+  field <- "times"
+  sapply(GLOBAL$db$tables[[field]]$public_fields_compact, function(field) {
+    handleInputUpdate(field, session)
+  })
+
+  sapply(GLOBAL$db$tables[[field]]$public_fields_details, function(field) {
+    handleInputUpdate(field, session)
   })
 }
 
@@ -683,6 +703,22 @@ handleDebugInfo <- function(input, output) {
   #       dat <- loadData(table = table_2)
   #       dat[input$dt_issues_rows_selected, ]
   #     })
+}
+
+
+# Handlers ----------------------------------------------------------------
+
+handleInputUpdate <- function(field, session) {
+  name <- field$name
+  default <- field$default
+  switch(
+    class(default),
+    "character" = updateTextInput(session, name, value = default),
+    "integer" = updateNumericInput(session, name, value = default),
+    "numeric" = updateNumericInput(session, name, value = default),
+    "Date" = updateDateInput(session, name, value = default),
+    "logical" = updateCheckboxInput(session, name, value = default)
+  )
 }
 
 # DEPRECATED  -------------------------------------------------------------
