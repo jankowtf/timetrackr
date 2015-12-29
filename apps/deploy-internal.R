@@ -1,22 +1,21 @@
 
 # Meta --------------------------------------------------------------------
 
-name <- "timetrackr"
-vsn <- "v0.2.2"
-
-# Install dependencies ----------------------------------------------------
-
-devtools::install_github("rappster/timetrackr", ref = sprintf("release_%s", vsn))
-
-# Copy dev to productive --------------------------------------------------
-
+name <- devtools::as.package(".")$package
+vsn <- sprintf("v%s", devtools::as.package(".")$version)
 vsn_name <- sprintf("%s_%s", name, vsn)
+git_branch <- sprintf("release_%s", vsn)
+
 from <- file.path("apps", vsn_name)
 to <- "apps/production"
 
 prod_dir <- file.path(to, name)
 
-dir.create(to, showWarnings = FALSE)
+# Copy dev to productive --------------------------------------------------
+
+## Ensure that it's empty //
+unlink(prod_dir, recursive = TRUE, force = TRUE)
+dir.create(prod_dir, recursive = TRUE, showWarnings = FALSE)
 
 # files <- list.files(from, recursive = TRUE, full.names = TRUE)
 # sapply(files, file.copy, to = to, overwrite = TRUE)
@@ -25,7 +24,3 @@ file.copy(from = from, to = to, recursive = TRUE, overwrite = TRUE)
 
 unlink(prod_dir, recursive = TRUE, force = TRUE)
 file.rename(from = file.path(to, vsn_name), to = prod_dir)
-
-# Deploy ------------------------------------------------------------------
-
-rsconnect::deployApp(prod_dir, account = "rappster")

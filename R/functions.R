@@ -40,7 +40,7 @@ prepareDatabase <- function(
   #   }
 
   ## Main //
-  name <- GLOBALS$db$tables$issues$tablename
+  name <- GLOBAL$db$tables$issues$tablename
   if (!dbExistsTable(db, name)) {
     fields <- c(public_fields_compact, public_fields_details, private_fields)
     value <- sapply(fields, function(ii) {
@@ -57,7 +57,7 @@ prepareDatabase <- function(
   }
 
   ## Times //
-  name <- GLOBALS$db$tables$times$tablename
+  name <- GLOBAL$db$tables$times$tablename
   if (!dbExistsTable(db, name)) {
     fields <- c(
       times_public_fields_compact,
@@ -306,7 +306,7 @@ logTime <- function(
   values = list()
 ) {
   db <- sqlite_path
-  table_times <- GLOBALS$db$tables$times$tablename
+  table_times <- GLOBAL$db$tables$times$tablename
   ## TODO: refactor global dependency
 
   ## Query //
@@ -430,10 +430,10 @@ updateSpecific <- function(
     dbDisconnect(db)
   }
 
-  if (table == GLOBALS$db$tables$issues$tablename) {
+  if (table == GLOBAL$db$tables$issues$tablename) {
     calculateTimeUntilComplete(table = table, uid = uid)
   }
-  if (table == GLOBALS$db$tables$times$tablename) {
+  if (table == GLOBAL$db$tables$times$tablename) {
     calculateWeek(table = table, uid = uid)
   }
   ## TODO: refactor: should not be dependent on specific table names
@@ -589,26 +589,26 @@ deleteDependent <- function(
     )
     dbGetQuery(db, query)
     dbDisconnect(db)
-    message(sprintf("Deleted dependent records from '%s'", table))
+    # message(sprintf("Deleted dependent records from '%s'", table))
   }
 }
 
 # Auxiliary ---------------------------------------------------------------
 
 #' @title
-#' Valid statuses
+#' Valid issue statuses
 #'
 #' @description
-#' Valid statuses.
+#' Valid issue statuses.
 #'
 #' @details
 #' TODO
 #'
 #' @template authors
 #' @template references
-#' @example inst/examples/example-validStatuses.R
+#' @example inst/examples/example-VALIDS_issueStatus.R
 #' @export
-validStatuses <- function(
+VALIDS_issueStatus <- function(
 ) {
   c(todo = "to do", inprogress = "in progress", done = "done")
 }
