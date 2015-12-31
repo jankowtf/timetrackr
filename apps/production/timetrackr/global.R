@@ -4,23 +4,40 @@
 library(shiny)
 library(shinydashboard)
 
+# Valids ------------------------------------------------------------------
+
+VALIDS_issueProject <- function(
+) {
+  c(cloud = "Cloud", rservices = "R services")
+}
+
 # Variables ---------------------------------------------------------------
 
 GLOBAL <- list()
 GLOBAL$debug$enabled <- TRUE
 
-GLOBAL$valids <- list(issueStatus = VALIDS_issueStatus)
+## Valids //
+GLOBAL$valids <- list(
+  issueStatus = VALIDS_issueStatus,
+  issueProject = VALIDS_issueProject
+)
+
+## Layout parameters //
+GLOBAL$ui$main$left$width <- 9
+GLOBAL$ui$main$right$width <- 3
+
+GLOBAL$ui$main$times$left$height <- 370
+GLOBAL$ui$main$times$right$height <- 370
+
+GLOBAL$ui$main$issues$right$height <- 765
+GLOBAL$ui$main$issues$left$height <- GLOBAL$ui$main$issues$right$height
+
+GLOBAL$ui$main$projects$left$height <- 800
+GLOBAL$ui$main$projects$right$height <- GLOBAL$ui$main$projects$right$height
 
 # Buffer ------------------------------------------------------------------
 
 GLOBAL$buffer <- new.env()
-
-## Initialize counter //
-GLOBAL$buffer$action_task_create <- 0
-GLOBAL$buffer$action_task_create_2 <- 0
-GLOBAL$buffer$action_task_create_cancel <- 0
-GLOBAL$buffer$action_task_update_cancel <- 0
-GLOBAL$buffer$action_time_update_cancel <- 0
 
 # Database ----------------------------------------------------------------
 
@@ -48,6 +65,7 @@ cloneNames <- function(input,
 
 GLOBAL$db$tables$issues$tablename <- "issues"
 GLOBAL$db$tables$times$tablename <- "times"
+GLOBAL$db$tables$projects$tablename <- "projects"
 
 GLOBAL$db$tables$issues$public_fields_compact <- list(
   list(
@@ -96,13 +114,12 @@ GLOBAL$db$tables$issues$public_fields_compact <- list(
     default = as.numeric(0)
   ),
   list(
-    name = "issue_time_until_done",
-    nicename = "Time until done",
+    name = "issue_time_remaining",
+    nicename = "Time remaining",
     datatype = "REAL",
     default = as.numeric(1)
   )
 )
-
 GLOBAL$db$tables$issues$public_fields_details <- list(
   list(
     name = "issue_description",
@@ -134,7 +151,6 @@ GLOBAL$db$tables$issues$private_fields <- list(
   list(name = "_time_created", datatype = "TEXT"),
   list(name = "_time_modified", datatype = "TEXT")
 )
-
 GLOBAL$db$tables$issues <- cloneNames(
   input = GLOBAL$db$tables$issues,
   subset = c(
@@ -189,6 +205,43 @@ GLOBAL$db$tables$times <- cloneNames(
   )
 )
 
+## Projects //
+GLOBAL$db$tables$projects$public_fields_compact <- list(
+  list(
+    name = "project_name",
+    nicename = "Name",
+    datatype = "TEXT",
+    default = ""
+  ),
+  list(
+    name = "project_description",
+    nicename = "Description",
+    datatype = "TEXT",
+    default = ""
+  )
+)
+GLOBAL$db$tables$projects$public_fields_details <- list(
+  list(
+    name = "project_id",
+    nicename = "ID",
+    datatype = "TEXT",
+    default = ""
+  )
+)
+GLOBAL$db$tables$projects$private_fields <- list(
+  list(name = "_uid", datatype = "TEXT"),
+  list(name = "_time_created", datatype = "TEXT"),
+  list(name = "_time_modified", datatype = "TEXT")
+)
+GLOBAL$db$tables$projects <- cloneNames(
+  input = GLOBAL$db$tables$projects,
+  subset = c(
+    "public_fields_compact",
+    "public_fields_details",
+    "private_fields"
+  )
+)
+
 # Instantiate -------------------------------------------------------------
 
 # App.Timetracking$debug("importData")
@@ -201,19 +254,82 @@ app <- App.Timetracking$new(injected = list(fs_con = NULL,
 
 # app$loadConfigs("data/config")
 
-# Dynamic UI: issue details ----------------------------------------------
+# Bundle input data -------------------------------------------------------
 
-composeUi_issueDetails <- function(input,
+bundleInputData_dbTableIssues <- function(input) {
+  fields <- c(
+    GLOBAL$db$tables$issues$public_fields_compact,
+    GLOBAL$db$tables$issues$public_fields_details
+  )
+  data <-
+    sapply(sapply(fields, "[[", "name"), function(x)
+      input[[x]])
+  data$issue_date <- as.character(data$issue_date)
+  data
+}
+
+bundleInputData_dbTableTimes <- function(input) {
+  fields <- c(
+    GLOBAL$db$tables$times$public_fields_compact,
+    GLOBAL$db$tables$times$public_fields_details
+  )
+  # fields <- paste0("issue_", sapply(fields, "[[", "name"))
+  fields <- sapply(fields, "[[", "name")
+  data <- sapply(fields, function(x)
+    input[[x]])
+
+  data$issue_time_logged <- handleTime(data$issue_time_logged)
+  data$issue_time_logged_date <-
+    as.character(data$issue_time_logged_date)
+  ## TODO: make transformations more transparent and more robust
+  ## against name changes
+
+  data
+}
+
+bundleInputData_dbTableProjects <- function(input) {
+  table <- "projects"
+  fields <- c(
+    GLOBAL$db$tables[[table]]$public_fields_compact,
+    GLOBAL$db$tables[[table]]$public_fields_details
+  )
+  fields <- sapply(fields, "[[", "name")
+  sapply(fields, function(x) input[[x]])
+}
+
+# Bundle UIDs --------------------------------------------------------------------
+
+getUids_dbTableIssues <- function(input) {
+  idx <- input$dt_issues_rows_selected
+  dat <- loadData(table = GLOBAL$db$tables$issues$tablename)
+  dat[idx, "_uid"]
+}
+
+getUids_dbTableTimes <- function(input) {
+  idx <- input$dt_times_rows_selected
+  dat <- loadData(table = GLOBAL$db$tables$times$tablename)
+  dat[idx, "_uid"]
+}
+
+getUids_dbTableProjects <- function(input) {
+  idx <- input$dt_projects_rows_selected
+  dat <- loadData(table = GLOBAL$db$tables$projects$tablename)
+  dat[idx, "_uid"]
+}
+
+# Generate UI: issue details ----------------------------------------------
+
+generateUi_issueDetails <- function(input,
   output,
-  ui_control,
+  uicontrol,
   debug = GLOBAL$debug$enabled) {
   ## Dependencies //
-  action_selected_row <- ui_control$selected
+  action_selected_row <- uicontrol$selected
 
   ## Aux function //
   getFormValue <- function(field, idx, default = "") {
     if (!is.null(idx)) {
-      dat <- loadData(table = "issues")
+      dat <- loadData(table = GLOBAL$db$tables$issues$tablename)
       dat[idx, field]
     } else {
       value <- isolate(input[[field]])
@@ -256,6 +372,22 @@ composeUi_issueDetails <- function(input,
   value <- getFormValue(field = field, idx = action_selected_row)
   container[[field]] <- textInput(field, name, value)
 
+  value <- getFormValue(
+    field = field,
+    idx = action_selected_row,
+    default = GLOBAL$db$tables$issues$public_fields_compact[[field]]$default
+  )
+  projects <- loadData(GLOBAL$db$tables$projects$tablename)[, "project_name"]
+  container[[field]] <- selectInput(field,
+    name,
+    # unname(GLOBAL$valids$issueProject()),
+    projects,
+    selected = projects[1]
+  )
+
+  container$goto_projects <- actionLink("goto_projects", "Manage projects")
+  container$p <- p()
+
   # field <- "issue_week"
   # name <- "Week"
   # value <- getFormValue(field = field, idx = action_selected_row)
@@ -287,21 +419,20 @@ composeUi_issueDetails <- function(input,
     # default = GLOBAL$valids$issueStatus()["todo"]
     default = GLOBAL$db$tables$issues$public_fields_compact[[field]]$default
   )
-  # print(value)
   container[[field]] <- selectInput(field,
     name,
     unname(GLOBAL$valids$issueStatus()),
     selected = unname(value))
   # print(container[[field]])
   ## TODO 2015-12-29: check why pre-selection does not work
+  ## --> gh issue #2
 
   field <- "issue_time_estimated"
   name <- "Time estimated"
   value <- getFormValue(field = field, idx = action_selected_row)
   container[[field]] <- textInput(field, name, value)
 
-  container$goto_info <-
-    actionLink("goto_info", "Valid time formats")
+  container$goto_info <- actionLink("goto_info", "Valid time formats")
 
   field <- "issue_unplanned"
   name <- "Unplanned"
@@ -332,27 +463,28 @@ composeUi_issueDetails <- function(input,
   container[[field]] <- checkboxInput(field, name, value = value)
 
   ## Bundle in box //
-  value <- if (ui_control$case == "create") {
+  value <- if (uicontrol$case == "create") {
     container$buttons <- div(
       style = "display:inline-block",
-      actionButton("action_task_create_2", "Create"),
-      actionButton("action_task_create_cancel", "Cancel")
+      actionButton("action_issue_create_2", "Create"),
+      actionButton("action_issue_create_cancel", "Cancel")
     )
     do.call(box,
       args = list(
         container,
-        title = "Create task",
+        title = "New task",
         status = "primary",
-        width = NULL
+        width = NULL,
+        height = GLOBAL$ui$main$issues$right$height
       ))
-  } else if (ui_control$case == "update") {
+  } else if (uicontrol$case == "update") {
     container$buttons <- div(
       style = "display:inline-block",
-      actionButton("action_task_update", "Update"),
-      # actionButton("action_task_update_cancel", "Cancel"),
+      actionButton("action_issue_update", "Update"),
+      # actionButton("action_issue_update_cancel", "Cancel"),
       p(),
       actionButton(
-        "action_task_delete",
+        "action_issue_delete",
         "Delete",
         icon = icon("exclamation-triangle")
       )
@@ -363,6 +495,7 @@ composeUi_issueDetails <- function(input,
         title = "Update task",
         status = "danger",
         width = NULL
+        # height = GLOBAL$ui$main$issues$right$height
       ))
   } else {
     stop("Not implemented")
@@ -370,15 +503,15 @@ composeUi_issueDetails <- function(input,
   value
 }
 
-# Dynamic UI: create time ----------------------------------------------------
+# Generate UI: time details ----------------------------------------------------
 
-composeUi_timeDetails <- function(input,
+generateUi_timeDetails <- function(input,
   output,
-  ui_control,
+  uicontrol,
   debug = GLOBAL$debug$enabled) {
   ## Dependencies //
-  # action_dt_issues_selected_row <- ui_control$selected_issue
-  action_dt_times_selected_row <- ui_control$selected
+  # action_dt_issues_selected_row <- uicontrol$selected_issue
+  action_dt_times_selected_row <- uicontrol$selected
 
   ## Aux function //
   getFormValue <- function(field, idx, default = "") {
@@ -438,7 +571,7 @@ composeUi_timeDetails <- function(input,
     )
   )
 
-  value <- if (ui_control$case == "create") {
+  value <- if (uicontrol$case == "create") {
     container$buttons <- div(style = "display:inline-block",
       actionButton("action_time_create", "Log"))
     do.call(box,
@@ -448,7 +581,7 @@ composeUi_timeDetails <- function(input,
         status = "primary",
         width = NULL
       ))
-  } else if (ui_control$case == "update") {
+  } else if (uicontrol$case == "update") {
     container$buttons <- div(
       style = "display:inline-block",
       actionButton("action_time_update", "Update"),
@@ -475,13 +608,13 @@ composeUi_timeDetails <- function(input,
   value
 }
 
-# Dynamic UI: display times ------------------------------------------------
+# Generate UI: time table display ------------------------------------------------
 
-composeUi_displayTimes <- function(input,
+generateUi_displayTimes <- function(input,
   output,
-  ui_control_ref) {
+  uicontrol_ref) {
   ## Dependencies //
-  selected_ref <- ui_control_ref$selected
+  selected_ref <- uicontrol_ref$selected
 
   container <- list()
   container$dt_times <- DT::dataTableOutput("dt_times")
@@ -492,59 +625,113 @@ composeUi_displayTimes <- function(input,
       container,
       title = "Logged times",
       status = "primary",
-      width = NULL
+      width = NULL,
+      height = GLOBAL$ui$main$times$left$height
     ))
 }
 
-# Bundle input data -------------------------------------------------------
+# Generate UI: project details ----------------------------------------------
 
-bundleInputData_dbTableIssues <- function(input) {
-  fields <- c(
-    GLOBAL$db$tables$issues$public_fields_compact,
-    GLOBAL$db$tables$issues$public_fields_details
+generateUi_projectDetails <- function(input,
+  output,
+  uicontrol,
+  debug = GLOBAL$debug$enabled
+) {
+  ## Dependencies //
+  action_selected_row <- uicontrol$selected
+
+  ## Aux function //
+  getFormValue <- function(field, idx, default = "") {
+    if (!is.null(idx)) {
+      dat <- loadData(table = GLOBAL$db$tables$projects$tablename)
+      dat[idx, field]
+    } else {
+      value <- isolate(input[[field]])
+      if (is.null(value)) {
+        default
+      } else {
+        value
+      }
+    }
+  }
+
+  ## Form components //
+  container <- list()
+
+  field <- "project_name"
+  name <- GLOBAL$db$tables$projects$public_fields_compact[[field]]$nicename
+  value <- getFormValue(field = field, idx = action_selected_row)
+  container[[field]] <- textInput(field, name, value)
+
+  field <- "project_description"
+  name <- GLOBAL$db$tables$projects$public_fields_compact[[field]]$nicename
+  value <- getFormValue(field = field, idx = action_selected_row)
+  # container[[field]] <- textInput(field, name, value)
+  # container$title <- tags$strong("Description")
+  # container$space <- p()
+  container[[field]] <- div(
+    class = "form-group shiny-input-container",
+    tags$label("for" = name, name),
+    tags$textarea(
+      id = field,
+      rows = 3,
+      cols = 30,
+      value,
+      class = "form-control"
+    )
   )
-  data <-
-    sapply(sapply(fields, "[[", "name"), function(x)
-      input[[x]])
-  data$issue_date <- as.character(data$issue_date)
-  data
+
+  container$hr <- tags$hr()
+
+  field <- "project_id"
+  name <- GLOBAL$db$tables$projects$public_fields_details[[field]]$nicename
+  value <- getFormValue(field = field, idx = action_selected_row)
+  container[[field]] <- textInput(field, name, value)
+
+  ## Bundle in box //
+  value <- if (uicontrol$case == "create") {
+    container$buttons <- div(
+      style = "display:inline-block",
+      actionButton("action_project_create_2", "Create"),
+      actionButton("action_project_create_cancel", "Cancel")
+    )
+    do.call(box,
+      args = list(
+        container,
+        title = "New project",
+        status = "primary",
+        width = NULL
+        # height = GLOBAL$ui$main$projects$right$height
+      ))
+  } else if (uicontrol$case == "update") {
+    container$buttons <- div(
+      style = "display:inline-block",
+      actionButton("action_project_update", "Update"),
+      # actionButton("action_project_update_cancel", "Cancel"),
+      p(),
+      actionButton(
+        "action_project_delete",
+        "Delete",
+        icon = icon("exclamation-triangle")
+      )
+    )
+    do.call(box,
+      args = list(
+        container,
+        title = "Update project",
+        status = "danger",
+        width = NULL
+        # height = GLOBAL$ui$main$projects$right$height
+      ))
+  } else {
+    stop("Not implemented")
+  }
+  value
 }
 
-bundleInputData_dbTableTimes <- function(input) {
-  fields <- c(
-    GLOBAL$db$tables$times$public_fields_compact,
-    GLOBAL$db$tables$times$public_fields_details
-  )
-  # fields <- paste0("issue_", sapply(fields, "[[", "name"))
-  fields <- sapply(fields, "[[", "name")
-  data <- sapply(fields, function(x)
-    input[[x]])
+# Action handlers: CRUD ---------------------------------------------------
 
-  data$issue_time_logged <- handleTime(data$issue_time_logged)
-  data$issue_time_logged_date <-
-    as.character(data$issue_time_logged_date)
-  ## TODO: make transformations more transparent and more robust
-  ## against name changes
-
-  data
-}
-
-# UIDs --------------------------------------------------------------------
-
-getUids_dbTableIssues <- function(input) {
-  idx <- input$dt_issues_rows_selected
-  dat <- loadData(table = GLOBAL$db$tables$issues$tablename)
-  dat[idx, "_uid"]
-}
-
-getUids_dbTableTimes <- function(input) {
-  idx <- input$dt_times_rows_selected
-  dat <- loadData(table = GLOBAL$db$tables$times$tablename)
-  dat[idx, "_uid"]
-}
-
-# Perform actions ---------------------------------------------------------
-
+## Issues //
 act_createIssue <- function(input_bundles = list(),
   uids = list()) {
   saveData(
@@ -572,6 +759,7 @@ act_deleteIssue <- function(input_bundles = list(),
   )
 }
 
+## Times //
 act_createTime <- function(input_bundles = list(),
   uids = list()) {
   logTime(
@@ -619,6 +807,36 @@ act_deleteTime <- function(input_bundles = list(),
   )
 }
 
+## Projects //
+act_createProject <- function(input_bundles = list(),
+  uids = list()) {
+  saveProject(
+    data = input_bundles$bundle_db_table_projects(),
+    table = GLOBAL$db$tables$projects$tablename,
+    uid = uids$uid_projects()
+  )
+}
+
+act_updateProject <- function(input_bundles = list(),
+  uids = list()) {
+  saveProject(
+    data = input_bundles$bundle_db_table_projects(),
+    table = GLOBAL$db$tables$projects$tablename,
+    uid = uids$uid_projects()
+  )
+}
+
+act_deleteProject <- function(input_bundles = list(),
+  uids = list()) {
+  deleteData(
+    table = GLOBAL$db$tables$projects$tablename,
+    uid = uids$uid_projects(),
+    dependent = c(GLOBAL$db$tables$times$tablename)
+  )
+}
+
+# Action handlers: reset ---------------------------------------------------
+
 act_resetIssueInput <- function(session) {
   field <- "issues"
   sapply(GLOBAL$db$tables[[field]]$public_fields_compact, function(field) {
@@ -630,8 +848,19 @@ act_resetIssueInput <- function(session) {
   })
 }
 
-act_resetTimesInput <- function(session) {
+act_resetTimeInput <- function(session) {
   field <- "times"
+  sapply(GLOBAL$db$tables[[field]]$public_fields_compact, function(field) {
+    handleInputUpdate(field, session)
+  })
+
+  sapply(GLOBAL$db$tables[[field]]$public_fields_details, function(field) {
+    handleInputUpdate(field, session)
+  })
+}
+
+act_resetProjectInput <- function(session) {
+  field <- "projects"
   sapply(GLOBAL$db$tables[[field]]$public_fields_compact, function(field) {
     handleInputUpdate(field, session)
   })
@@ -649,9 +878,9 @@ renderResults_dbTableIssues <- function() {
 }
 
 renderResults_dbTableTimes <- function(uids = list(),
-  ui_control_ref = list()) {
+  uicontrol_ref = list()) {
   ## Dependencies: issues //
-  selected_ref <- ui_control_ref$selected
+  selected_ref <- uicontrol_ref$selected
 
   value <- if (length(selected_ref)) {
     dat <- loadData(table = GLOBAL$db$tables$times$tablename,
@@ -660,6 +889,12 @@ renderResults_dbTableTimes <- function(uids = list(),
   } else {
     data.frame()
   }
+}
+
+renderResults_dbTableProjects <- function() {
+  tablename <- "projects"
+  data <- loadData(table = GLOBAL$db$tables[[tablename]]$tablename)
+  prepareForDisplay(data, GLOBAL$db$tables[[tablename]]$public_fields_compact)
 }
 
 # Debug infos -------------------------------------------------------------
