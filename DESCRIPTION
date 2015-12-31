@@ -1,8 +1,8 @@
 Package: timetrackr
 Type: Package
 Title: A simple time tracking tool
-Version: 0.2.3
-Date: 2015-12-29
+Version: 0.2.4
+Date: 2015-12-31
 Authors@R: person("Janko", "Thyson", email = "janko.thyson@rappster.de",
     role = c("aut", "cre"))
 Description: Allows to manage taks/issues and log time against them.
@@ -15,6 +15,9 @@ Suggests:
     knitr,
     rmarkdown,
     settings,
+    shiny,
+    shinydashboard,
+    DT,
     testthat
 VignetteBuilder: knitr
 RoxygenNote: 5.0.0

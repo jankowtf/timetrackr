@@ -32,8 +32,9 @@ ui <- dashboardPage(
   dashboardBody(tabItems(
     tabItem(
       tabName = "tasks",
-      fluidRow(column(width = 7,
-        div()),
+      fluidRow(
+        # column(width = 7, div()),
+        column(width = 7, verbatimTextOutput("selection_info")),
         column(
           width = 3,
           actionButton("action_task_create", "Create task")
@@ -159,15 +160,31 @@ server <- function(input, output, session) {
     ui_control_times$case <- "hide"
     ui_control_times$show_table <- FALSE
   })
+
   observe({
     idx <- input$dt_issues_rows_selected
+    # if (length(idx) && length(ui_control_issues$selected)) {
+    # if (length(idx)) {
+      ui_control_issues$selected <- idx
+    # }
+  })
+  observe({
+    idx <- ui_control_issues$selected
     if (!is.null(idx)) {
       ui_control_issues$case <- "update"
     } else {
       ui_control_issues$case <- "hide"
     }
-    ui_control_issues$selected <- idx
   })
+  # observe({
+  #   idx <- input$dt_issues_rows_selected
+  #   if (!is.null(idx)) {
+  #     ui_control_issues$case <- "update"
+  #   } else {
+  #     ui_control_issues$case <- "hide"
+  #   }
+  #   ui_control_issues$selected <- idx
+  # })
 
   ## Reset issue-related inputs //
   observe(if (ui_control_issues$case == "create") {
@@ -185,6 +202,7 @@ server <- function(input, output, session) {
     updateTextInput(session, "issue_summary", value = "Hello world!")
 
     ui_control_issues$case <- "hide"
+    ui_control_issues$selected <- NULL
   })
 
   # Cancel create issue //
@@ -228,7 +246,7 @@ server <- function(input, output, session) {
 
   ## Render //
   output$dt_issues <- DT::renderDataTable({
-    ## Dependency trigger //
+    ## Refresh trigger //
     ui_control_issues$refresh
 
     renderResults_dbTableIssues()
@@ -241,6 +259,13 @@ server <- function(input, output, session) {
       scrollX = TRUE,
       columnDefs = list(list(width = '8%', targets = "_all"))
     ))
+
+  proxy_dt_issues <- DT::dataTableProxy("dt_issues")
+  observe({
+    input$dt_issues_rows_selected
+    # input$action_create_task
+    DT::selectRows(proxy_dt_issues, as.numeric(ui_control_issues$selected))
+  })
 
   #######################
   ## Dynamic UI: times ##
@@ -255,7 +280,8 @@ server <- function(input, output, session) {
 
   ## Selected rows issues table //
   observe({
-    idx <- input$dt_issues_rows_selected
+    # idx <- input$dt_issues_rows_selected
+    idx <- ui_control_issues$selected
     if (!is.null(idx)) {
       # ui_control_times$refresh <- ui_control_times$refresh + 1
       ui_control_times$refresh <- NULL
@@ -276,10 +302,15 @@ server <- function(input, output, session) {
 
       ui_control_times$case <- "create"
       ui_control_times$show_table <- TRUE
+      # ui_control_times$proxy_selected_parent <- idx
     } else {
       ui_control_times$refresh <- NULL
       ui_control_times$refresh <- FALSE
-      ui_control_times$case <- "hide"
+      # if (is.null(ui_control_times$proxy_selected_parent)) {
+        ui_control_times$case <- "hide"
+      # } else {
+      #   ui_control_times$case <- "create"
+      # }
       ui_control_times$show_table <- FALSE
     }
     ui_control_times$selected <- idx
@@ -298,7 +329,8 @@ server <- function(input, output, session) {
 
   ## Reset times-related inputs //
   observe({
-    input$dt_issues_rows_selected
+    # input$dt_issues_rows_selected
+    ui_control_issues$selected
     # if (ui_control_times$case == "create") {
     act_resetTimesInput(session)
     # }
@@ -382,6 +414,15 @@ server <- function(input, output, session) {
     renderResults_dbTableTimes(uids = list(uid_issues = uid_issues),
       ui_control_ref = ui_control_issues)
   }, selection = "single", options = list(dom = "ltipr"))
+
+
+  output$selection_info <- renderPrint({
+    c(
+      paste0("Issue: ", ui_control_issues$selected),
+      paste0("Time: ", ui_control_times$selected)
+    )
+  })
+
 }
 
 # Launch  ---------------------------------------------------------------

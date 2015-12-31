@@ -22,6 +22,11 @@ prepareDatabase <- function(
   times_public_fields_compact,
   times_public_fields_details,
   times_private_fields,
+  projects_public_fields_compact,
+  projects_public_fields_details,
+  projects_private_fields,
+  ## TODO 2015-12-30: generalize
+  ## --> GH issue #6
   ...
 ) {
   if (!file.exists(sqlite_path)) {
@@ -78,6 +83,28 @@ prepareDatabase <- function(
     dbGetQuery(db, query)
   }
 
+  ## Projects //
+  name <- GLOBAL$db$tables$projects$tablename
+  if (!dbExistsTable(db, name)) {
+    fields <- c(
+      projects_public_fields_compact,
+      projects_public_fields_details,
+      projects_private_fields
+    )
+    # print(fields)
+    value <- sapply(fields, function(ii) {
+      paste(ii$name, ii$datatype)
+    })
+    query <- sprintf(
+      "CREATE TABLE %s(%s)",
+      name,
+      paste(value, collapse = ", ")
+    )
+
+    # Submit the update query and disconnect
+    dbGetQuery(db, query)
+  }
+
   dbDisconnect(db)
 }
 
@@ -96,10 +123,12 @@ prepareDatabase <- function(
 #' @template references
 #' @example inst/examples/example-loadData.R
 #' @export
-loadData <- function(table, uid = character(), refuid = character()) {
-  # Connect to the database
+loadData <- function(
+  table,
+  uid = character(),
+  refuid = character()
+) {
   db <- dbConnect(SQLite(), sqlite_path)
-  # Construct the fetching query
 
   uid <- if (length(uid)) {
     sprintf("_uid = '%s'", uid)
@@ -124,6 +153,288 @@ loadData <- function(table, uid = character(), refuid = character()) {
   data
 }
 
+# Save --------------------------------------------------------------------
+
+#' @title
+#' Save to database
+#'
+#' @description
+#' Writes stuff to the database in the appropriate format/way.
+#'
+#' @details
+#' TODO
+#'
+#' @template authors
+#' @template references
+#' @example inst/examples/example-saveData.R
+#' @export
+saveData <- function(data,
+  table,
+  uid = character(),
+  globals = list(hours_per_workday = 8)
+) {
+  ## Prepare data //
+  data <- as.list(data)
+
+  data$issue_time_estimated <- handleTime(data$issue_time_estimated,
+    globals = globals)
+  data$issue_time_spent <- handleTime(data$issue_time_spent, globals = globals)
+  data$issue_time_remaining <- data$issue_time_estimated - data$issue_time_spent
+
+  ## Connect to the database //
+  db <- dbConnect(SQLite(), sqlite_path)
+  now <- Sys.time()
+
+  data$issue_date <- as.character(data$issue_date)
+  data$issue_week = format(as.Date(data$issue_date), "%V")
+
+  values <- c(
+    data
+  )
+
+  ## Query //
+  if (!length(uid)) {
+    ## --> create
+    ## Ensure //
+    values$issue_time_spent <- 0
+    values$time_remaining <- values$time_estimated
+    ## TODO: this is sort of a bug, shouldn't be necessary
+
+    values <- c(
+      values,
+      list("_uid" = digest(now)),
+      list("_time_created" = as.character(now))
+    )
+    query <- sprintf(
+      "INSERT INTO %s (%s) VALUES ('%s')",
+      table,
+      paste(names(values), collapse = ", "),
+      paste(values, collapse = "', '")
+    )
+  } else {
+    ## --> update
+    values <- c(
+      values,
+      list("_time_modified" = as.character(now))
+    )
+    query <- sprintf(
+      "UPDATE %s
+      SET %s
+      WHERE _uid = %s",
+      table,
+      paste(paste(names(values), paste0("'", values, "'"), sep = " = "),
+        collapse = ", "),
+      paste0("'", uid, "'")
+    )
+  }
+
+  ## Submit query and disconnect //
+  dbGetQuery(db, query)
+  dbDisconnect(db)
+}
+
+#' @title
+#' Save project to database
+#'
+#' @description
+#' Writes project stuff to the database in the appropriate format/way.
+#'
+#' @details
+#' TODO
+#'
+#' @template authors
+#' @template references
+#' @example inst/examples/example-saveProject.R
+#' @export
+saveProject <- function(
+  data,
+  table,
+  uid = character()
+) {
+  ## Prepare data //
+  data <- as.list(data)
+
+  ## Connect to the database //
+  db <- dbConnect(SQLite(), sqlite_path)
+  now <- Sys.time()
+
+  values <- c(
+    data
+  )
+
+  ## Query //
+  if (!length(uid)) {
+    ## --> create
+    values <- c(
+      values,
+      list("_uid" = digest(now)),
+      list("_time_created" = as.character(now))
+    )
+    query <- sprintf(
+      "INSERT INTO %s (%s) VALUES ('%s')",
+      table,
+      paste(names(values), collapse = ", "),
+      paste(values, collapse = "', '")
+    )
+  } else {
+    ## --> update
+    values <- c(
+      values,
+      list("_time_modified" = as.character(now))
+    )
+    query <- sprintf(
+      "UPDATE %s
+      SET %s
+      WHERE _uid = %s",
+      table,
+      paste(paste(names(values), paste0("'", values, "'"), sep = " = "),
+        collapse = ", "),
+      paste0("'", uid, "'")
+    )
+  }
+
+  ## Submit query and disconnect //
+  dbGetQuery(db, query)
+  dbDisconnect(db)
+}
+
+# Update specific ---------------------------------------------------------
+
+#' @title
+#' Update specific
+#'
+#' @description
+#' Update specific.
+#'
+#' @details
+#' TODO
+#'
+#' @template authors
+#' @template references
+#' @example inst/examples/example-updateSpecific.R
+#' @export
+updateSpecific <- function(
+  table,
+  uid = character(),
+  values,
+  refuid = character()
+) {
+  db <- sqlite_path
+  ## TODO: refactor: remove global dependency
+
+  # print(values)
+
+  ## Query //
+  if (length(uid)) {
+    ## Connect to the database //
+    db <- dbConnect(SQLite(), db)
+
+    if (!length(refuid)) {
+      ## --> update this table only
+
+      query <- sprintf(
+        "UPDATE %s
+        SET %s
+        WHERE _uid = '%s'",
+        table,
+        paste(paste(names(values), paste0("'", values, "'"), sep = " = "),
+          collapse = ", "),
+        uid
+      )
+    } else {
+      ## --> update dependent table(s)
+
+      query <- sprintf(
+        "UPDATE %s
+        SET %s
+        WHERE _uid = '%s' AND _refuid = '%s'",
+        table,
+        paste(paste(names(values), paste0("'", values, "'"), sep = " = "),
+          collapse = ", "),
+        uid,
+        refuid
+      )
+    }
+    ## Submit query and disconnect //
+    dbGetQuery(db, query)
+    dbDisconnect(db)
+  }
+
+  if (table == GLOBAL$db$tables$issues$tablename) {
+    calculateTimeUntilComplete(table = table, uid = uid)
+  }
+  if (table == GLOBAL$db$tables$times$tablename) {
+    calculateWeek(table = table, uid = uid)
+  }
+  ## TODO: refactor: should not be dependent on specific table names
+}
+
+# Delete ------------------------------------------------------------------
+
+#' @title
+#' Delete database entry
+#'
+#' @description
+#' Delete database entry.
+#'
+#' @details
+#' TODO
+#'
+#' @template authors
+#' @template references
+#' @example inst/examples/example-deleteData.R
+#' @export
+deleteData <- function(
+  table,
+  uid = character(),
+  dependent = character()
+) {
+  if (length(uid)) {
+    db <- dbConnect(SQLite(), sqlite_path)
+    query <- sprintf(
+      "DELETE FROM %s WHERE %s",
+      table,
+      paste0("_uid = '", uid, "'")
+    )
+    dbGetQuery(db, query)
+    dbDisconnect(db)
+
+    if (length(dependent)) {
+      sapply(dependent, deleteDependent, refuid = uid)
+    }
+  }
+}
+
+#' @title
+#' Delete dependent
+#'
+#' @description
+#' Delete dependent.
+#'
+#' @details
+#' TODO
+#'
+#' @template authors
+#' @template references
+#' @example inst/examples/example-deleteDependent.R
+#' @export
+deleteDependent <- function(
+  table,
+  refuid = character()
+) {
+  if (length(refuid)) {
+    db <- dbConnect(SQLite(), sqlite_path)
+    query <- sprintf(
+      "DELETE FROM %s WHERE %s",
+      table,
+      sprintf("_refuid = '%s'", refuid)
+    )
+    dbGetQuery(db, query)
+    dbDisconnect(db)
+    # message(sprintf("Deleted dependent records from '%s'", table))
+  }
+}
+
 # Prepare for display -----------------------------------------------------
 
 #' @title
@@ -140,13 +451,11 @@ loadData <- function(table, uid = character(), refuid = character()) {
 #' @example inst/examples/example-prepareForDisplay.R
 #' @export
 prepareForDisplay <- function(input, fields) {
-  #   message("input:")
-  #   print(input)
-  #   message("fields:")
-  #   print(fields)
-
-  tmp <- input[, sapply(fields, "[[", "name")]
-  names(tmp) <- sapply(fields, "[[", "nicename")
+  # tmp <- input[, sapply(fields, "[[", "name")]
+  tmp <- input[, sapply(fields, "[[", "name"), drop = FALSE]
+  if (length(tmp)) {
+    names(tmp) <- sapply(fields, "[[", "nicename")
+  }
   tmp
 }
 
@@ -202,86 +511,6 @@ handleTime <- function(
       sum(as.numeric(spl))
     }
   }
-}
-
-# Save --------------------------------------------------------------------
-
-#' @title
-#' Save to database
-#'
-#' @description
-#' Writes stuff to the database in the appropriate format/way.
-#'
-#' @details
-#' TODO
-#'
-#' @template authors
-#' @template references
-#' @example inst/examples/example-saveData.R
-#' @export
-saveData <- function(data,
-  table,
-  uid = character(),
-  globals = list(hours_per_workday = 8)
-) {
-  ## Prepare data //
-  data <- as.list(data)
-
-  data$issue_time_estimated <- handleTime(data$issue_time_estimated,
-    globals = globals)
-  data$issue_time_spent <- handleTime(data$issue_time_spent, globals = globals)
-  data$issue_time_until_done <- data$issue_time_estimated - data$issue_time_spent
-
-  ## Connect to the database //
-  db <- dbConnect(SQLite(), sqlite_path)
-  now <- Sys.time()
-
-  data$issue_date <- as.character(data$issue_date)
-  data$issue_week = format(as.Date(data$issue_date), "%V")
-
-  values <- c(
-    data
-  )
-
-  ## Query //
-  if (!length(uid)) {
-    ## --> create
-    ## Ensure //
-    values$issue_time_spent <- 0
-    values$time_until_done <- values$time_estimated
-    ## TODO: this is sort of a bug, shouldn't be necessary
-
-    values <- c(
-      values,
-      list("_uid" = digest(now)),
-      list("_time_created" = as.character(now))
-    )
-    query <- sprintf(
-      "INSERT INTO %s (%s) VALUES ('%s')",
-      table,
-      paste(names(values), collapse = ", "),
-      paste(values, collapse = "', '")
-    )
-  } else {
-    ## --> update
-    values <- c(
-      values,
-      list("_time_modified" = as.character(now))
-    )
-    query <- sprintf(
-      "UPDATE %s
-      SET %s
-      WHERE _uid = %s",
-      table,
-      paste(paste(names(values), paste0("'", values, "'"), sep = " = "),
-        collapse = ", "),
-      paste0("'", uid, "'")
-    )
-  }
-
-  ## Submit query and disconnect //
-  dbGetQuery(db, query)
-  dbDisconnect(db)
 }
 
 # Log time ----------------------------------------------------------------
@@ -368,77 +597,6 @@ logTime <- function(
   calculateTimeUntilComplete(table = table, uid = uid)
 }
 
-# Update specific ---------------------------------------------------------
-
-#' @title
-#' Update specific
-#'
-#' @description
-#' Update specific.
-#'
-#' @details
-#' TODO
-#'
-#' @template authors
-#' @template references
-#' @example inst/examples/example-updateSpecific.R
-#' @export
-updateSpecific <- function(
-  table,
-  uid = character(),
-  values,
-  refuid = character()
-) {
-  db <- sqlite_path
-  ## TODO: refactor: remove global dependency
-
-# print(values)
-
-  ## Query //
-  if (length(uid)) {
-    ## Connect to the database //
-    db <- dbConnect(SQLite(), db)
-
-    if (!length(refuid)) {
-      ## --> update this table only
-
-      query <- sprintf(
-        "UPDATE %s
-        SET %s
-        WHERE _uid = '%s'",
-        table,
-        paste(paste(names(values), paste0("'", values, "'"), sep = " = "),
-          collapse = ", "),
-        uid
-      )
-    } else {
-      ## --> update dependent table(s)
-
-      query <- sprintf(
-        "UPDATE %s
-        SET %s
-        WHERE _uid = '%s' AND _refuid = '%s'",
-        table,
-        paste(paste(names(values), paste0("'", values, "'"), sep = " = "),
-          collapse = ", "),
-        uid,
-        refuid
-      )
-    }
-    ## Submit query and disconnect //
-    dbGetQuery(db, query)
-    dbDisconnect(db)
-  }
-
-  if (table == GLOBAL$db$tables$issues$tablename) {
-    calculateTimeUntilComplete(table = table, uid = uid)
-  }
-  if (table == GLOBAL$db$tables$times$tablename) {
-    calculateWeek(table = table, uid = uid)
-  }
-  ## TODO: refactor: should not be dependent on specific table names
-}
-
 # Calculate ---------------------------------------------------------------
 
 #' @title
@@ -462,9 +620,9 @@ calculateTimeUntilComplete <- function(
 
   issue_time_estimated <- record$issue_time_estimated
   issue_time_spent <- record$issue_time_spent
-  issue_time_until_done <- issue_time_estimated - issue_time_spent
+  issue_time_remaining <- issue_time_estimated - issue_time_spent
 
-  values <- list(issue_time_until_done = issue_time_until_done)
+  values <- list(issue_time_remaining = issue_time_remaining)
 
   ## Connect to the database //
   db <- dbConnect(SQLite(), sqlite_path)
@@ -524,72 +682,6 @@ calculateWeek <- function(
     ## Submit query and disconnect //
     dbGetQuery(db, query)
     dbDisconnect(db)
-  }
-}
-
-# Delete ------------------------------------------------------------------
-
-#' @title
-#' Delete database entry
-#'
-#' @description
-#' Delete database entry.
-#'
-#' @details
-#' TODO
-#'
-#' @template authors
-#' @template references
-#' @example inst/examples/example-deleteData.R
-#' @export
-deleteData <- function(
-  table,
-  uid = character(),
-  dependent = character()
-) {
-  if (length(uid)) {
-    db <- dbConnect(SQLite(), sqlite_path)
-    query <- sprintf(
-      "DELETE FROM %s WHERE %s",
-      table,
-      paste0("_uid = '", uid, "'")
-    )
-    dbGetQuery(db, query)
-    dbDisconnect(db)
-
-    if (length(dependent)) {
-      sapply(dependent, deleteDependent, refuid = uid)
-    }
-  }
-}
-
-#' @title
-#' Delete dependent
-#'
-#' @description
-#' Delete dependent.
-#'
-#' @details
-#' TODO
-#'
-#' @template authors
-#' @template references
-#' @example inst/examples/example-deleteDependent.R
-#' @export
-deleteDependent <- function(
-  table,
-  refuid = character()
-) {
-  if (length(refuid)) {
-    db <- dbConnect(SQLite(), sqlite_path)
-    query <- sprintf(
-      "DELETE FROM %s WHERE %s",
-      table,
-      sprintf("_refuid = '%s'", refuid)
-    )
-    dbGetQuery(db, query)
-    dbDisconnect(db)
-    # message(sprintf("Deleted dependent records from '%s'", table))
   }
 }
 

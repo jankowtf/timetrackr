@@ -6,7 +6,8 @@
 \usage{
 prepareDatabase(sqlite_path, public_fields_compact, public_fields_details,
   private_fields, times_public_fields_compact, times_public_fields_details,
-  times_private_fields, ...)
+  times_private_fields, projects_public_fields_compact,
+  projects_public_fields_details, projects_private_fields, ...)
 }
 \description{
 Prepare database.
