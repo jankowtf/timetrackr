@@ -677,7 +677,11 @@ server <- function(input, output, session) {
   ## Action links ##
   ##################
 
-  observeEvent(input$goto_info, {
+  observeEvent(input$goto_info_from_issues, {
+    newvalue <- "info"
+    updateTabItems(session, "tabs", newvalue)
+  })
+  observeEvent(input$goto_info_from_times, {
     newvalue <- "info"
     updateTabItems(session, "tabs", newvalue)
   })

@@ -435,7 +435,7 @@ generateUi_issueDetails <- function(input,
   value <- getFormValue(field = field, idx = action_selected_row)
   container[[field]] <- textInput(field, name, value)
 
-  container$goto_info <- actionLink("goto_info", "Valid time formats")
+  container$goto_info_from_issues <- actionLink("goto_info_from_issues", "Valid time formats")
 
   field <- "issue_unplanned"
   name <- "Unplanned"
@@ -545,7 +545,7 @@ generateUi_timeDetails <- function(input,
   )
   container[[field]] <- textInput(field, name, value)
 
-  container$goto_info <- actionLink("goto_info", "Valid time formats")
+  container$goto_info_from_times <- actionLink("goto_info_from_times", "Valid time formats")
   # container$p <- p(HTML("<a href='#timeformats'>Valid time formats</a> (link broken, see info tab)"))
   #   container$timeformats <- div(id="linkToTimeFormats",
   #     tags$a("Valid time formats (see info tab)"))
